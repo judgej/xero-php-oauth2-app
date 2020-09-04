@@ -19,6 +19,8 @@ var endpoint = [
     {name: "---IDENTITY---",action:[{name: ""}]},
     {name: "Connection",action:[{name: "Delete"}]},
     {name: "Connections",action:[{name: "Read"}]},
+    {name: "---AUTHORISATION---",action:[{name: ""}]},
+    {name: "Token",action:[{name: "Revoke"}]},
     {name: "---ACCOUNTING---",action:[{name: ""}]},
     {name: "Account",action:[{name: "Create"},{name: "Read"},{name: "Update"},{name: "Delete"},{name: "Archive"},{name: "Attachment"},{name: "AttachmentById"} ]},
     {name: "Accounts",action:[{name: "Read"}]},
@@ -97,13 +99,13 @@ function setArray(arr,match) {
     }
 }
 
-function loadGet(appName,logoutUrl,refreshUrl,currEndpoint,currAction) 
+function loadGet(appName,logoutUrl,refreshUrl,authoriseUrl,currEndpoint,currAction)
 {
 
     setArray(endpoint,currEndpoint);     
    
     var template = Handlebars.getTemplate('container');
-    var data = {name: appName,logoutUrl: logoutUrl, refreshUrl: refreshUrl};
+    var data = {name: appName,logoutUrl: logoutUrl, refreshUrl: refreshUrl, authoriseUrl: authoriseUrl};
     var html = template(data);
     document.querySelector("#req").innerHTML = html;    
     

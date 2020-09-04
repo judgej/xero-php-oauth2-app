@@ -1,17 +1,20 @@
 <?php
+
+    use League\OAuth2\Client\Provider\GenericProvider;
+    use Calcinai\OAuth2\Client\Provider\Xero as XeroProvider;
+    use Dotenv\Dotenv;
+
     ini_set('display_errors', 'On');
 	require __DIR__ . '/vendor/autoload.php';
 
-	require_once('storage.php');
-	require_once('example.php');
-
-	$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+	$dotenv = Dotenv::createImmutable(__DIR__);
 	$dotenv->load();
+
 	$clientId = getenv('CLIENT_ID');
 	$clientSecret = getenv('CLIENT_SECRET');
 	$redirectUri = getenv('REDIRECT_URI');
 
-	// Storage Classe uses sessions for storing token > extend to your DB of choice
+	// Storage Class uses sessions for storing token > extend to your DB of choice
 	$storage = new StorageClass();
 
 	// ALL methods are demonstrated using this class
@@ -22,29 +25,29 @@
 	// Check if Access Token is expired
 	// if so - refresh token
 	if ($storage->getHasExpired()) {
-		$provider = new \League\OAuth2\Client\Provider\GenericProvider([
+		$provider = new XeroProvider([
 			'clientId'                => $clientId,   
 			'clientSecret'            => $clientSecret,
 			'redirectUri'             => $redirectUri,
-        	'urlAuthorize'            => 'https://login.xero.com/identity/connect/authorize',
-        	'urlAccessToken'          => 'https://identity.xero.com/connect/token',
-        	'urlResourceOwnerDetails' => 'https://api.xero.com/api.xro/2.0/Organisation'
 		]);
 
 	    $newAccessToken = $provider->getAccessToken('refresh_token', [
 	        'refresh_token' => $storage->getRefreshToken()
 	    ]);
-	    // Save my token, expiration and refresh token
-         // Save my token, expiration and refresh token
-		 $storage->setToken(
+
+        // Save my token, expiration and refresh token
+        $storage->setToken(
             $newAccessToken->getToken(),
-            $newAccessToken->getExpires(), 
+            $newAccessToken->getExpires(),
             $xeroTenantId,
             $newAccessToken->getRefreshToken(),
-            $newAccessToken->getValues()["id_token"] );
+            $newAccessToken->getValues()["id_token"]
+        );
 	}
 
-	$config = XeroAPI\XeroPHP\Configuration::getDefaultConfiguration()->setAccessToken( (string)$storage->getSession()['token'] );		  
+	$config = XeroAPI\XeroPHP\Configuration::getDefaultConfiguration()
+        ->setAccessToken( (string)$storage->getSession()['token'] );
+
 	$accountingApi = new XeroAPI\XeroPHP\Api\AccountingApi(
 	    new GuzzleHttp\Client(),
 	    $config
@@ -87,7 +90,15 @@
 	$file = file_get_contents('./example.php', true);
 
 	$parsed = get_string_between($file, '//[' . $endpoint . ':' . $action . ']', '//[/' . $endpoint . ':' . $action . ']');
-	$parsed = str_replace(["\r\n", "\r", "\n"], "<br/>", $parsed);
+	$parsed = str_replace(["\r\n", "\r", "\n"], "<br />", $parsed);
+
+	// Get a list of tenants from the connections for the selector.
+
+    $tenantList = [];
+
+    foreach ($storage->getConnections() as $connection) {
+        $tenantList[$connection->getTenantId()] = $connection->getTenantName();
+    }
 
 	function get_string_between($string, $start, $end){
 	    $string = ' ' . $string;
@@ -107,14 +118,37 @@
 	<script src="xero-sdk-ui/xero.js"  crossorigin="anonymous"></script>
 	<script type="text/javascript">
 	   	document.addEventListener("DOMContentLoaded", function() {
-			loadGet("xero-php sample app","disconnect.php","get.php","<?php echo($endpoint) ?>", "<?php echo($action) ?>");
+			loadGet("xero-php sample app","disconnect.php","get.php","/","<?php echo($endpoint) ?>", "<?php echo($action) ?>");
 		});
    	</script>
 </head>
 <body>
 
+    <div id="tenant" class="container">
+        <div class="row">
+            <div class="col"><h2>Tenant</h2></div>
+        </div>
+        <form method="get" action="set-tenant.php">
+            <div class="row">
+                <div class="col">
+                    <select class="form-control" name="tenant-id">
+                        <?php foreach ($tenantList as $key => $item) { ?>
+                            <option value="<?php echo $key; ?>" <?php echo $key === $xeroTenantId ? 'selected' : '' ?>><?php echo htmlspecialchars($item); ?></option>
+                        <?php } ?>
+                    </select>
+                </div>
+                <?php if (count($tenantList) > 1) {?>
+                <div class="col">
+                    <button type="submit" class="btn btn-primary">Select</button>
+                </div>
+                <?php } ?>
+            </div>
+        </form>
+    </div>
+
 	<div id="req" class="container"></div>
-	<div id="res" class="container">	
+
+	<div id="res" class="container">
 		<h3><?php echo($endpoint);?></h3>
 		<hr>
 
@@ -127,15 +161,11 @@
 			try {
 			switch($endpoint)
 			{
-
-
-
-				
 				case "Connection":
 				    switch($action)
 					{
 				    	case "Delete":
-						echo $ex->deleteConnection($xeroTenantId,$identityApi);
+						echo $ex->deleteConnection($xeroTenantId, $identityApi);
 						break;
 				    	default:
 					    echo $action . " action not supported in API";
@@ -147,6 +177,17 @@
                     {
                         case "Read":
                             echo $ex->getConnections($identityApi);
+                            break;
+                        default:
+                            echo $action . " action not supported in API";
+                    }
+                    break;
+
+                case "Token":
+                    switch($action)
+                    {
+                        case "Revoke":
+                            echo $ex->revokeAuthorisation();
                             break;
                         default:
                             echo $action . " action not supported in API";

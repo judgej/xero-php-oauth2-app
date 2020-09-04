@@ -1,16 +1,26 @@
 <?php
+
 // Use this class to deserialize error caught
+
+use GuzzleHttp\Client;
+use GuzzleHttp\Psr7\Request;
+use GuzzleHttp\Psr7\Uri;
 use XeroAPI\XeroPHP\AccountingObjectSerializer;
 use XeroAPI\XeroPHP\PayrollAuObjectSerializer;
+use Dotenv\Dotenv;
+use Calcinai\OAuth2\Client\Provider\Xero as XeroProvider;
+use function GuzzleHttp\Psr7\stream_for;
 
 class ExampleClass
 {
 	public $apiInstance;
 
-	function __construct() {
+	function __construct()
+	{
    	}
 
-   	public function init($arg) {
+   	public function init($arg)
+	{
 		$apiInstance = $arg;
    	}
 
@@ -115,29 +125,47 @@ Following methods demonstrate Xero's
 Accounting API endpoints
 https://raw.githubusercontent.com/XeroAPI/Xero-OpenAPI/master/accounting-yaml/xero_accounting.yaml 
 */
-	public function deleteConnection($xeroTenantId,$identityApi,$returnObj=false)
+	public function deleteConnection($xeroTenantId, $identityApi, $returnObj = false)
 	{
-		$str = '';
-		
-
 //[Connection:Delete]
-$connections = $identityApi->getConnections();
-$id = $connections[0]->getId();
-$result = $identityApi->deleteConnection($id);
+		// Find the connection for the Xero tenant.
+		$connections = $identityApi->getConnections();
+		$filtered = array_filter($connections, function ($item) use ($xeroTenantId) {
+			return $item->getTenantId() === $xeroTenantId;
+		});
+		// If found, delete the connection.
+		if (count($filtered) === 1) {
+			$connection = reset($filtered);
+			$connectionId = $connection->getId();
+			$result = $identityApi->deleteConnection($connectionId);
+		} else {
+			$result = null;
+		}
 //[/Connection:Delete]
 
-		if($returnObj) {
+		// Update the list of connections in storage, since we will have one fewer now.
+		if (isset($connection)) {
+			sleep(1);
+			$connections = $identityApi->getConnections();
+			$storage = new StorageClass();
+			$storage->setConnections($connections);
+
+			$firstConnection = reset($connections);
+			if ($firstConnection) {
+				$storage->setXeroTenantId($firstConnection->getTenantId());
+			}
+		}
+
+		if ($returnObj) {
 			return $result;
 		} else {
-			$str = $str . "Organisation connection  deleted<br>";
-			return $str;
+			return 'Organisation connection deleted<br /><a href="get.php">Refresh page</a><br />';
 		}
 	}
 
-	public function getConnections($identityApi,$returnObj=false)
+	public function getConnections($identityApi, $returnObj = false)
 	{
 		$str = '';
-
 
 //[Connections:Read]
 		$result = $identityApi->getConnections();
@@ -150,6 +178,60 @@ $result = $identityApi->deleteConnection($id);
 					return trim($carry . ' ' . $item->getTenantId() . ' = "'. $item->getTenantName() . '"');
 				}) . '<br>';
 			return $str;
+		}
+	}
+
+	/**
+	 * Revoke authorisation (all scopes and all tenant connections).
+	 * This uses the revoke endpoint, which is outside of
+	 */
+	public function revokeAuthorisation($returnObj = false)
+	{
+		$dotenv = Dotenv::createImmutable(__DIR__);
+		$dotenv->load();
+
+		$clientId = getenv('CLIENT_ID');
+		$clientSecret = getenv('CLIENT_SECRET');
+
+		$provider = new XeroProvider([
+			'clientId'                => $clientId,
+			'clientSecret'            => $clientSecret,
+		]);
+
+		$storage = new StorageClass();
+var_dump($storage->getToken());
+		$provider->revoke($storage->getToken());
+
+		return "TESTING";
+
+		$revokeUri = $provider->getRevokeUrl();
+
+		$request = new Request('POST', $revokeUri);
+
+		$request = $request->withHeader(
+			'Authorization',
+			'Basic ' . base64_encode($clientId . ':' . $clientSecret)
+		)->withHeader(
+			'Content-Type',
+			'application/x-www-form-urlencoded'
+		);
+
+		$body = stream_for(http_build_query([
+			'token' => $storage->getRefreshToken(),
+			// See https://tools.ietf.org/html/rfc7009#section-2.1
+			'token_type_hint' => 'refresh_token',
+		]));
+
+		$request = $request->withBody($body);
+
+		$client = new Client();
+
+		$result = $client->send($request);
+
+		if ($returnObj) {
+			return $result;
+		} else {
+			return 'All authorisations revoked';
 		}
 	}
 

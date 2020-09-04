@@ -1,4 +1,10 @@
 <?php
+    /**
+     * This script only discards the OAuth tokens that it holds.
+     * It does not disconnect tenants in Xero, and does not revoke
+     * the OAuth token.
+     */
+
     require __DIR__ . '/vendor/autoload.php';
 
     use XeroPHP\Application\PublicApplication;

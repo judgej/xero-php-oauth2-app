@@ -5,7 +5,8 @@
     "require": {
         "xeroapi/xero-php-oauth2": "2.0.2",
         "monolog/monolog": "1.0",
-        "vlucas/phpdotenv": "^4.1"
+        "vlucas/phpdotenv": "^4.1",
+        "calcinai/oauth2-xero": "^1.0"
     },
     "license": "MIT",
     "authors": [
@@ -13,5 +14,8 @@
             "name": "Xero API Team",
             "email": "api@xero.com"
         }
-    ]
+    ],
+    "autoload": {
+        "files": ["storage.php", "example.php", "session.php"]
+    }
 }

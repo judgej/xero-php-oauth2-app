@@ -1,55 +1,55 @@
 <?php
-	ini_set('display_errors', 'On');
-	require __DIR__ . '/vendor/autoload.php';
-	require_once('storage.php');
-	
-	$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
-	$dotenv->load();
-	$clientId = getenv('CLIENT_ID');
-	$clientSecret = getenv('CLIENT_SECRET');
-	$redirectUri = getenv('REDIRECT_URI');
 
-	// Storage Classe uses sessions for storing access token > extend to your DB of choice
-	$storage = new StorageClass();
+/**
+ * Start the OAuth 2.0 code authorisation flow.
+ */
 
-	$provider = new \League\OAuth2\Client\Provider\GenericProvider([
-        'clientId'                => $clientId,   
-        'clientSecret'            => $clientSecret,
-        'redirectUri'             => $redirectUri,
-	    'urlAuthorize'            => 'https://login.xero.com/identity/connect/authorize',
-	    'urlAccessToken'          => 'https://identity.xero.com/connect/token',
-	    'urlResourceOwnerDetails' => 'https://api.xero.com/api.xro/2.0/Organisation'
-	]);
+use Calcinai\OAuth2\Client\Provider\Xero as XeroProvider;
+use Dotenv\Dotenv;
 
-	// If we don't have an authorization code then get one
-	if (!isset($_GET['code'])) {
-		$options = [
-	    	'scope' => ['openid email profile offline_access assets projects accounting.settings accounting.transactions accounting.contacts accounting.journals.read accounting.reports.read accounting.attachments']
-		];
+ini_set('display_errors', 'On');
+require __DIR__ . '/vendor/autoload.php';
 
-	    // Fetch the authorization URL from the provider; this returns the urlAuthorize option and generates and applies any necessary parameters (e.g. state).
-	    $authorizationUrl = $provider->getAuthorizationUrl($options);
+$dotenv = Dotenv::createImmutable(__DIR__);
+$dotenv->load();
+$clientId = getenv('CLIENT_ID');
+$clientSecret = getenv('CLIENT_SECRET');
+$redirectUri = getenv('REDIRECT_URI');
 
-	    // Get the state generated for you and store it to the session.
-	    $_SESSION['oauth2state'] = $provider->getState();
+$session = new SessionClass();
 
-	    // Redirect the user to the authorization URL.
-	    header('Location: ' . $authorizationUrl);
-	    exit();
+$provider = new XeroProvider([
+    'clientId'                => $clientId,
+    'clientSecret'            => $clientSecret,
+    'redirectUri'             => $redirectUri,
+]);
 
-	// Check given state against previously stored one to mitigate CSRF attack
-	} elseif (empty($_GET['state']) || ($_GET['state'] !== $_SESSION['oauth2state'])) {
-	    unset($_SESSION['oauth2state']);
-	    exit('Invalid state');
-	} else {
+$scope = getenv('SCOPE');
+if (empty($scope)) {
+    $scope = 'openid email profile offline_access assets projects accounting.settings accounting.transactions accounting.contacts accounting.journals.read accounting.reports.read accounting.attachments';
+}
 
-	}
+$options = [
+    'scope' => [$scope],
+];
+
+// Fetch the authorization URL from the provider;
+// this returns the urlAuthorize option and generates and applies any necessary parameters (e.g. state).
+$authorizationUrl = $provider->getAuthorizationUrl($options);
+
+// Get the state generated for you and store it to the session.
+$session->setState($provider->getState());
+
+// Redirect the user to the authorization URL.
+header('Location: ' . $authorizationUrl);
 ?>
-	<html>
+<html>
 	<head>
-		<title>My App</title>
+		<title>My Xero App</title>
 	</head>
 	<body>
-		Opps! Problem redirecting .....
+		<p>
+            <a href="<?php echo htmlspecialchars($authorizationUrl); ?>">Redirecting to Xero</a>
+        </p>
 	</body>
 </html>
