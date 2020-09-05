@@ -1,5 +1,9 @@
 <?php
 
+/**
+ * Handle the return from Xero.
+ */
+
 use League\OAuth2\Client\Provider\Exception\IdentityProviderException;
 use XeroAPI\XeroPHP\Configuration;
 use XeroAPI\XeroPHP\Api\IdentityApi;
@@ -23,9 +27,9 @@ $storage = new StorageClass();
 $session = new SessionClass();
 
 $provider = new XeroProvider([
-    'clientId'                => $clientId,
-    'clientSecret'            => $clientSecret,
-    'redirectUri'             => $redirectUri,
+    'clientId'      => $clientId,
+    'clientSecret'  => $clientSecret,
+    'redirectUri'   => $redirectUri,
 ]);
 
 // Just to avoid messing around with globals.
@@ -37,29 +41,62 @@ $state = $queryParams['state'] ?? null;
 $oauthError = $queryParams['error'] ?? null;
 
 if (! isset($code)) {
-    // If we don't have an authorization code then get one by starting from the beginning.
-    // TODO: treat this like any other error.
+    // If we don't have an authorization code then something has gone wrong.
 
-    header('Location: index.php?error=true&oauth_error=' . $oauthError);
+    $errorMessage =  sprintf('Failed with oauth_error:  %s', $oauthError);
 
-// Check given state against previously stored one to mitigate CSRF attack
 } elseif (empty($state) || ($state !== $session->getState())) {
-    echo 'Invalid State';
-    $session->clearState();
+    // No state was provided, or the state does not match what we are expecting.
+
+    $errorMessage = 'Invalid or missing state';
 } else {
     try {
         // Try to get an access token using the authorization code grant.
+
         $accessToken = $provider->getAccessToken('authorization_code', [
             'code' => $code
         ]);
 
-        $jwt = new JWTClaims();
-        $jwt->setTokenId($accessToken->getValues()['id_token']);
-        $jwt->decode();
+        // Decode additional claims from the ID and access tokens.
+        // This class decodes the payload.
+
+        $idToken = new JWTClaims();
+        $idToken->setTokenId($accessToken->getValues()['id_token']); // i.e. "set ID token"
+        $idToken->setTokenAccess($accessToken); // i.e. "set access token"
+        $idToken->decode(); // Decode the access and ID token payloads
+
+        $storage->setUserDetails([
+            'givenName' => $idToken->getGivenName(),
+            'familyName' => $idToken->getFamilyName(),
+            'email' => $idToken->getEmail(),
+            'username' => $idToken->getPreferredUsername(),
+            'xeroUserId' => $idToken->getXeroUserId(),
+            'authenticatedAt' => $idToken->getAuthTime(),
+            // Unique user ID; how does this compare to XeroUserId?
+            // Is this a contact vs user thing?
+            'sub' => $idToken->getSub(),
+            'expiresAt' => $idToken->getExp(),
+        ]);
+
+        // This comes from the access token.
+        $storage->setAuthenticationEventId($idToken->getAuthenticationEventId());
+
+        $storage->setScope($accessToken->getValues()['scope']);
+
+        // Use the authentication to get the connected tenant details.
 
         $config = Configuration::getDefaultConfiguration()->setAccessToken( (string)$accessToken->getToken() );
 
         $identityApi = new IdentityApi(new Client(), $config);
+
+        // Save the access token, along with its expiry time and refresh token.
+        // This is all that is needed to be authenticated and authorised (scopes are included).
+
+        $storage->setAccessToken(
+            $accessToken->getToken(),
+            $accessToken->getExpires(),
+            $accessToken->getRefreshToken(),
+        );
 
         // Get Array of connections (to tenants).
 
@@ -69,27 +106,20 @@ if (! isset($code)) {
 
         $storage->setConnections($connections);
 
-        // Save my token, expiration and the first tenant_id
-        $storage->setToken(
-            $accessToken->getToken(),
-            $accessToken->getExpires(),
-            $connections[0]->getTenantId(),
-            $accessToken->getRefreshToken(),
-            $accessToken->getValues()['id_token']
-        );
+        // Set the active tenant to just be the first in the list.
 
-        header('Location: get.php');
+        $session->setTenantId(reset($connections)->getTenantId());
 
     } catch (IdentityProviderException $e) {
         // Failed to get the access token or user details.
 
-        echo sprintf('Failed with error: %s', $e->getMessage());
+        $errorMessage = sprintf('IdentityProviderException failed with error: %s', $e->getMessage());
     }
-
-    // The state is a single-use CSRF token, so we no longer need it.
-
-    $session->clearState();
 }
+
+// The state is a single-use CSRF token; we no longer need it at this point.
+
+$session->clearState();
 
 // TODO: display the error or the redirect.
 // We could show the identity token details here too, and not automatically redirect.
@@ -97,13 +127,82 @@ if (! isset($code)) {
 // list the tenants currently connected.
 
 ?>
-<html>
-    <head>
-        <title>My Xero App</title>
-    </head>
-    <body>      
-        <p>
-            <a href="get.php">Try out the API here</a>
-        </p>
-    </body>
-</html>
+<?php if (! empty($errorMessage)) { ?>
+    <html>
+        <head>
+            <title>My Xero App - Authentication Error</title>
+            <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+            <script src="http://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.0.11/handlebars.min.js"  crossorigin="anonymous"></script>
+        </head>
+        <body>
+            <p>
+                <?php echo htmlspecialchars($errorMessage); ?>
+            </p>
+            <p>
+                <a href="/">Try again</a>
+            </p>
+        </body>
+    </html>
+<?php } else { ?>
+    <html>
+        <head>
+            <title>My Xero App</title>
+            <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+            <script src="http://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.0.11/handlebars.min.js"  crossorigin="anonymous"></script>
+        </head>
+        <body>
+            <div class="container">
+                <h2>API</h2>
+
+                <p><a href="get.php">Try out the API here</a></p>
+
+                <h2>Authenticating User details</h2>
+
+                <table class="table">
+                    <tr>
+                        <th>Property</th>
+                        <th>Value</th>
+                    </tr>
+                    <?php foreach ($storage->getUserDetails() as $property => $value) { ?>
+                        <tr>
+                            <td><?php echo $property; ?></td>
+                            <td><?php echo htmlspecialchars($value); ?></td>
+                        </tr>
+                    <?php } ?>
+                </table>
+
+                <h2>Current Scope</h2>
+
+                <table class="table">
+                    <?php foreach ($storage->getScope() as $value) { ?>
+                        <tr>
+                            <td><?php echo $value; ?></td>
+                        </tr>
+                    <?php } ?>
+                </table>
+
+                <h2>Connected Tenants</h2>
+
+                <table class="table">
+                    <tr>
+                        <th>Type</th>
+                        <th>Name</th>
+                        <th>Connected Time</th>
+                    </tr>
+                    <?php foreach ($storage->getConnections() as $connection) { ?>
+                        <tr>
+                            <td><?php echo htmlspecialchars($connection['tenant_type']); ?></td>
+                            <td><?php echo htmlspecialchars($connection['tenant_name']); ?></td>
+                            <td>
+                                <?php echo $connection['updated_date_utc']->format(\DATE_RSS); ?>
+                                <?php echo ($connection['auth_event_id'] === $storage->getAuthenticationEventId() ? ' <strong>[NEW THIS AUTH]</strong>' : '') ?>
+                            </td>
+                        </tr>
+                    <?php } ?>
+                </table>
+            </div>
+        </body>
+    </html>
+<?php } ?>

@@ -199,10 +199,10 @@ https://raw.githubusercontent.com/XeroAPI/Xero-OpenAPI/master/accounting-yaml/xe
 		]);
 
 		$storage = new StorageClass();
-var_dump($storage->getToken());
-		$provider->revoke($storage->getToken());
 
-		return "TESTING";
+//		$provider->revoke($storage->getToken()); // TODO: provide the refresh token; test with access token too.
+
+//		return "TESTING";
 
 		$revokeUri = $provider->getRevokeUrl();
 

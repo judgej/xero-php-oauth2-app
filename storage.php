@@ -28,7 +28,7 @@ class StorageClass
      * @param $refreshToken captured from authentication flow
      * @param $idToken JWT ID token (not used for authentication, captured in the auth flow)
      */
-	public function setToken($token, $expires = null, $tenantId, $refreshToken, $idToken)
+	public function xxxsetToken($token, $expires = null, $tenantId, $refreshToken, $idToken)
 	{    
 	    $_SESSION['oauth2'] = [
 	        'token' => $token,
@@ -40,30 +40,39 @@ class StorageClass
 	}
 
     /**
-     * Return the array of tokens, expiry and tenant id.
+     * @param string $token the full JWT token
+     * @param int $expires expiry unixtime
+     * @param string $refreshToken
+     */
+	public function setAccessToken($token, $expires, $refreshToken)
+    {
+        $_SESSION['oauth2'] = [
+            'token' => $token,
+            'expires' => $expires,
+            'refresh_token' => $refreshToken,
+        ];
+    }
+
+    /**
+     * Return the access token JWT, expiry time and refresh token.
      *
      * @return array|null
      */
-	public function getToken()
+	public function getAccessToken()
 	{
-	    // If it doesn't exist or is expired, return null.
-        // If expired, the refresh token is obtained through getRefreshToken().
-
-	    if (empty($this->getSession())
-	        || ($_SESSION['oauth2']['expires'] !== null
-	        && $_SESSION['oauth2']['expires'] <= time())
-	    ) {
+	    if (empty($_SESSION['oauth2'])) {
 	        return null;
 	    }
-	    return $this->getSession();
+
+	    return $_SESSION['oauth2'];
 	}
 
     /**
-     * @return string JWT access token
+     * @return string|null JWT access token
      */
-	public function getAccessToken()
+	public function getAccessTokenJwt()
 	{
-	    return $_SESSION['oauth2']['token'];
+	    return $_SESSION['oauth2']['token'] ?? null;
 	}
 
     /**
@@ -71,7 +80,7 @@ class StorageClass
      */
 	public function getRefreshToken()
 	{
-	    return $_SESSION['oauth2']['refresh_token'];
+	    return $_SESSION['oauth2']['refresh_token'] ?? null;
 	}
 
     /**
@@ -79,23 +88,15 @@ class StorageClass
      */
 	public function getExpires()
 	{
-	    return $_SESSION['oauth2']['expires'];
+	    return $_SESSION['oauth2']['expires'] ?? 0;
 	}
 
     /**
-     * @return mixed the current Xero tenant ID set in the session.
+     * @return bool true if the access token has expired or does not exist.
      */
-	public function getXeroTenantId()
-	{
-	    return $_SESSION['oauth2']['tenant_id'];
-	}
-
-    /**
-     * @param string $tenantId the new Xero tenant ID to set in the session.
-     */
-    public function setXeroTenantId($tenantId)
+    public function hasExpired()
     {
-        $_SESSION['oauth2']['tenant_id'] = $tenantId;
+        return time() > $this->getExpires();
     }
 
     /**
@@ -114,17 +115,60 @@ class StorageClass
         return $_SESSION['connections'] ?? [];
     }
 
-    public function getIdToken()
-	{
-	    return $_SESSION['oauth2']['id_token'];
-	}
+    // TODO: store scopes
+    // TODO: store id token
+    // TODO: store id token payload
+    // TODO: store authentication_event_id
 
-	public function getHasExpired()
-	{
-		if (!empty($this->getSession())) {
-			return time() > $this->getExpires();
-		} else {
-			return true;
-		}
-	}
+    /**
+     * @param array $userDetails
+     */
+    public function setUserDetails($userDetails)
+    {
+        $_SESSION['xero_user'] = $userDetails;
+    }
+
+    /**
+     * @return array
+     */
+    public function getUserDetails()
+    {
+        return $_SESSION['xero_user'] ?? [];
+    }
+
+    /**
+     * @param array|string $scope
+     */
+    public function setScope($scope)
+    {
+        if (is_string($scope)) {
+            $scope = explode(' ', $scope);
+        }
+
+        $_SESSION['scope'] = $scope;
+    }
+
+    /**
+     * @return array
+     */
+    public function getScope()
+    {
+        return $_SESSION['scope'] ?? [];
+    }
+
+    /**
+     * @param string $id
+     */
+    public function setAuthenticationEventId($id)
+    {
+        $_SESSION['auth_event_id'] = $id;
+    }
+
+    /**
+     * @return string
+     */
+    public function getAuthenticationEventId()
+    {
+        return $_SESSION['auth_event_id'] ?? null;
+    }
 }

@@ -2,7 +2,13 @@
 
     use League\OAuth2\Client\Provider\GenericProvider;
     use Calcinai\OAuth2\Client\Provider\Xero as XeroProvider;
+    use GuzzleHttp\Client;
     use Dotenv\Dotenv;
+    use XeroAPI\XeroPHP\Api\AccountingApi;
+    use XeroAPI\XeroPHP\Api\AssetApi;
+    use XeroAPI\XeroPHP\Api\IdentityApi;
+    use XeroAPI\XeroPHP\Api\ProjectApi;
+    use XeroAPI\XeroPHP\Api\PayrollAuApi;
 
     ini_set('display_errors', 'On');
 	require __DIR__ . '/vendor/autoload.php';
@@ -17,72 +23,76 @@
 	// Storage Class uses sessions for storing token > extend to your DB of choice
 	$storage = new StorageClass();
 
-	// ALL methods are demonstrated using this class
+	$session = new SessionClass();
+
+	// All methods are demonstrated using this class
 	$ex = new ExampleClass();
 
-	$xeroTenantId = (string)$storage->getSession()['tenant_id'];
+	$xeroTenantId = $session->getTenantId();
 
 	// Check if Access Token is expired
 	// if so - refresh token
-	if ($storage->getHasExpired()) {
+
+	if ($storage->hasExpired()) {
 		$provider = new XeroProvider([
-			'clientId'                => $clientId,   
-			'clientSecret'            => $clientSecret,
-			'redirectUri'             => $redirectUri,
+			'clientId'      => $clientId,
+			'clientSecret'  => $clientSecret,
+			'redirectUri'   => $redirectUri,
 		]);
 
 	    $newAccessToken = $provider->getAccessToken('refresh_token', [
 	        'refresh_token' => $storage->getRefreshToken()
 	    ]);
 
-        // Save my token, expiration and refresh token
-        $storage->setToken(
+        // Save the refreshed access token, expiration and refresh token.
+
+        $storage->setAccessToken(
             $newAccessToken->getToken(),
             $newAccessToken->getExpires(),
-            $xeroTenantId,
             $newAccessToken->getRefreshToken(),
-            $newAccessToken->getValues()["id_token"]
         );
+
+        // TODO: save the ID token too, in case scope has changed.
 	}
 
 	$config = XeroAPI\XeroPHP\Configuration::getDefaultConfiguration()
-        ->setAccessToken( (string)$storage->getSession()['token'] );
+        ->setAccessToken($storage->getAccessTokenJwt());
 
 	$accountingApi = new XeroAPI\XeroPHP\Api\AccountingApi(
-	    new GuzzleHttp\Client(),
+	    new Client(),
 	    $config
 	);
 
-	$assetApi = new XeroAPI\XeroPHP\Api\AssetApi(
-	    new GuzzleHttp\Client(),
+	$assetApi = new AssetApi(
+	    new Client(),
 	    $config
 	);
 
-	$identityApi = new XeroAPI\XeroPHP\Api\IdentityApi(
-	    new GuzzleHttp\Client(),
+	$identityApi = new IdentityApi(
+	    new Client(),
 	    $config
 	);
 
-	$projectApi = new XeroAPI\XeroPHP\Api\ProjectApi(
-	    new GuzzleHttp\Client(),
+	$projectApi = new ProjectApi(
+	    new Client(),
 	    $config
 	);
 
-	$payrollAuApi = new XeroAPI\XeroPHP\Api\PayrollAuApi(
-	    new GuzzleHttp\Client(),
+	$payrollAuApi = new PayrollAuApi(
+	    new Client(),
 	    $config
 	);
 
-	if (isset($_POST["endpoint"]) ) {
-		$endpoint = htmlspecialchars($_POST["endpoint"]);
+	if (isset($_POST['endpoint']) ) {
+		$endpoint = htmlspecialchars($_POST['endpoint']);
 	} else {
-		$endpoint = "Accounts";
+		$endpoint = 'Accounts';
 	}
 
-	if (isset($_POST["action"]) ) {
-		$action = htmlspecialchars($_POST["action"]);
+	if (isset($_POST['action']) ) {
+		$action = htmlspecialchars($_POST['action']);
 	} else {
-		$action = "none";
+		$action = 'none';
 	}
 
 	// Parse the example.php file to find matching endpoint/method combination

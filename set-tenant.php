@@ -17,6 +17,8 @@ include __DIR__ . '/vendor/autoload.php';
 $serverRequest = ServerRequest::fromGlobals();
 $queryParams = $serverRequest->getQueryParams();
 
+$session = new SessionClass();
+
 $tenantId = $queryParams['tenant-id'] ?? null;
 
 if (empty($tenantId)) {
@@ -26,7 +28,7 @@ if (empty($tenantId)) {
 
 $storage = new StorageClass();
 
-if ($storage->getToken() === null) {
+if ($storage->getAccessToken() === null) {
     echo 'No active access token. Please log in first.';
     exit;
 }
@@ -43,6 +45,6 @@ if (empty($filtered)) {
     exit;
 }
 
-$storage->setXeroTenantId($tenantId);
+$session->setTenantId($tenantId);
 
 header('Location: get.php');
