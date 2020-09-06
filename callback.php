@@ -4,13 +4,13 @@
  * Handle the return from Xero.
  */
 
+use Firebase\JWT\JWT;
 use League\OAuth2\Client\Provider\Exception\IdentityProviderException;
 use XeroAPI\XeroPHP\Configuration;
 use XeroAPI\XeroPHP\Api\IdentityApi;
 use GuzzleHttp\Client;
 use GuzzleHttp\Psr7\ServerRequest;
 use Calcinai\OAuth2\Client\Provider\Xero as XeroProvider;
-use XeroAPI\XeroPHP\JWTClaims;
 
 ini_set('display_errors', 'On');
 require __DIR__ . '/vendor/autoload.php';
@@ -53,17 +53,20 @@ if (! isset($code)) {
 } else {
     try {
         // Try to get an access token using the authorization code grant.
+        // This returned access token includes the ID token, so don't let
+        // the name confuse you.
 
         $accessToken = $provider->getAccessToken('authorization_code', [
             'code' => $code
         ]);
 
-        // Decode additional claims from the ID and access tokens.
-        // This class decodes the payload.
+        // Unwrap the access token JWT claims as we are interested in one or two
+        // of the custom claims.
 
-        $idToken = new JWTClaims();
-        $idToken->setTokenAccess($accessToken); // i.e. "set access token"
-        $idToken->decode(); // Decode the access and ID token payloads
+        list($header, $body, $crypto) = explode('.', $accessToken->getToken());
+        $accessTokenClaims = JWT::jsonDecode(JWT::urlsafeB64Decode($body));
+
+        $storage->setAuthenticationEventId($accessTokenClaims->authentication_event_id);
 
         $resourceOwner = $provider->getResourceOwner($accessToken);
 
@@ -83,10 +86,6 @@ if (! isset($code)) {
             'issuedAt' => $resourceOwner->iat,
             'issuedAtFormatted' => (new DateTime())->setTimestamp($resourceOwner->iat)->format(\DATE_RSS),
         ]);
-
-
-        // This comes from the access token.
-        $storage->setAuthenticationEventId($idToken->getAuthenticationEventId());
 
         $storage->setScope($accessToken->getValues()['scope']);
 
