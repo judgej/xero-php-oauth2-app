@@ -24,6 +24,7 @@ $redirectUri = getenv('REDIRECT_URI');
 // Storage Class uses sessions for storing token > extend to your DB of choice
 $storage = new StorageClass();
 
+// Put all session access through a class for visibility.
 $session = new SessionClass();
 
 $provider = new XeroProvider([
@@ -61,22 +62,28 @@ if (! isset($code)) {
         // This class decodes the payload.
 
         $idToken = new JWTClaims();
-        $idToken->setTokenId($accessToken->getValues()['id_token']); // i.e. "set ID token"
         $idToken->setTokenAccess($accessToken); // i.e. "set access token"
         $idToken->decode(); // Decode the access and ID token payloads
 
+        $resourceOwner = $provider->getResourceOwner($accessToken);
+
         $storage->setUserDetails([
-            'givenName' => $idToken->getGivenName(),
-            'familyName' => $idToken->getFamilyName(),
-            'email' => $idToken->getEmail(),
-            'username' => $idToken->getPreferredUsername(),
-            'xeroUserId' => $idToken->getXeroUserId(),
-            'authenticatedAt' => $idToken->getAuthTime(),
+            'givenName' => $resourceOwner->givenName,
+            'familyName' => $resourceOwner->familyName,
+            'email' => $resourceOwner->email,
+            'preferredUsername' => $resourceOwner->preferredUsername,
+            'xeroUserId' => $resourceOwner->xeroUserid,
             // Unique user ID; how does this compare to XeroUserId?
             // Is this a contact vs user thing?
-            'sub' => $idToken->getSub(),
-            'expiresAt' => $idToken->getExp(),
+            'subject' => $resourceOwner->sub,
+            'authTime' => $resourceOwner->authTime,
+            'authTimeFormatted' => (new DateTime())->setTimestamp($resourceOwner->authTime)->format(\DATE_RSS),
+            'expires' => $resourceOwner->exp,
+            'expiresFormatted' => (new DateTime())->setTimestamp($resourceOwner->exp)->format(\DATE_RSS),
+            'issuedAt' => $resourceOwner->iat,
+            'issuedAtFormatted' => (new DateTime())->setTimestamp($resourceOwner->iat)->format(\DATE_RSS),
         ]);
+
 
         // This comes from the access token.
         $storage->setAuthenticationEventId($idToken->getAuthenticationEventId());
@@ -85,7 +92,8 @@ if (! isset($code)) {
 
         // Use the authentication to get the connected tenant details.
 
-        $config = Configuration::getDefaultConfiguration()->setAccessToken( (string)$accessToken->getToken() );
+        $config = Configuration::getDefaultConfiguration()
+            ->setAccessToken((string)$accessToken->getToken());
 
         $identityApi = new IdentityApi(new Client(), $config);
 
@@ -158,7 +166,7 @@ $session->clearState();
 
                 <p><a href="get.php">Try out the API here</a></p>
 
-                <h2>Authenticating User details</h2>
+                <h2>Resource Owner details</h2>
 
                 <table class="table">
                     <tr>
@@ -197,7 +205,9 @@ $session->clearState();
                             <td><?php echo htmlspecialchars($connection['tenant_name']); ?></td>
                             <td>
                                 <?php echo $connection['updated_date_utc']->format(\DATE_RSS); ?>
-                                <?php echo ($connection['auth_event_id'] === $storage->getAuthenticationEventId() ? ' <strong>[NEW THIS AUTH]</strong>' : '') ?>
+                                <?php echo ($connection['auth_event_id'] === $storage->getAuthenticationEventId()
+                                    ? ' <strong>[ADDED THIS AUTH]</strong>'
+                                    : '') ?>
                             </td>
                         </tr>
                     <?php } ?>

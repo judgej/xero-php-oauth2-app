@@ -13,6 +13,10 @@ class SessionClass
     }
 
     /**
+     * The current tenant chosen by the user.
+     * This sets the tenant that all tenant-specific API requests (most of
+     * them) operate against.
+     *
      * @param string $tenantId
      */
     public function setTenantId($tenantId)
@@ -29,6 +33,11 @@ class SessionClass
     }
 
     /**
+     * The state is a CSRF token to catch CSRF attacks.
+     * The state can also be used to carry additional information such as a
+     * redirect URL to put the user back onto the page that triggered the
+     * authorisation.
+     *
      * @param string $state
      */
     public function setState($state)

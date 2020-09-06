@@ -200,33 +200,7 @@ https://raw.githubusercontent.com/XeroAPI/Xero-OpenAPI/master/accounting-yaml/xe
 
 		$storage = new StorageClass();
 
-//		$provider->revoke($storage->getToken()); // TODO: provide the refresh token; test with access token too.
-
-//		return "TESTING";
-
-		$revokeUri = $provider->getRevokeUrl();
-
-		$request = new Request('POST', $revokeUri);
-
-		$request = $request->withHeader(
-			'Authorization',
-			'Basic ' . base64_encode($clientId . ':' . $clientSecret)
-		)->withHeader(
-			'Content-Type',
-			'application/x-www-form-urlencoded'
-		);
-
-		$body = stream_for(http_build_query([
-			'token' => $storage->getRefreshToken(),
-			// See https://tools.ietf.org/html/rfc7009#section-2.1
-			'token_type_hint' => 'refresh_token',
-		]));
-
-		$request = $request->withBody($body);
-
-		$client = new Client();
-
-		$result = $client->send($request);
+		$result = $provider->revoke($storage->getRefreshToken());
 
 		if ($returnObj) {
 			return $result;

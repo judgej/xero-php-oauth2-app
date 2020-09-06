@@ -4,42 +4,15 @@ class StorageClass
 {
 	function __construct() {
 		if (! isset($_SESSION)) {
-        	$this->init_session();
+            session_start();
     	}
    	}
 
-   	public function init_session() {
-    	session_start();
-	}
-
-    public function getSession() {
-    	return $_SESSION['oauth2'];
-    }
-
- 	public function startSession($token, $secret, $expires = null)
-	{
-       	session_start();
-	}
-
     /**
-     * @param $token JWT access token
-     * @param int|null $expires unix timestamp expiry extracted from $token
-     * @param $tenantId (probably does not below here; nothing to do with the access token)
-     * @param $refreshToken captured from authentication flow
-     * @param $idToken JWT ID token (not used for authentication, captured in the auth flow)
-     */
-	public function xxxsetToken($token, $expires = null, $tenantId, $refreshToken, $idToken)
-	{    
-	    $_SESSION['oauth2'] = [
-	        'token' => $token,
-	        'expires' => $expires,
-	        'tenant_id' => $tenantId,
-	        'refresh_token' => $refreshToken,
-	        'id_token' => $idToken
-	    ];
-	}
-
-    /**
+     * Set the three important parts of the OAuth access detais.
+     * The "expires" time can be extracted from the JWT token, but extracting it
+     * once when storing saves time doing so for every request.
+     *
      * @param string $token the full JWT token
      * @param int $expires expiry unixtime
      * @param string $refreshToken
@@ -54,7 +27,7 @@ class StorageClass
     }
 
     /**
-     * Return the access token JWT, expiry time and refresh token.
+     * Return the access token JWT, expiry time and refresh token all together.
      *
      * @return array|null
      */
@@ -68,6 +41,8 @@ class StorageClass
 	}
 
     /**
+     * The JWT access token is sent with every request to the API as a Bearer authentication.
+     *
      * @return string|null JWT access token
      */
 	public function getAccessTokenJwt()
@@ -100,6 +75,11 @@ class StorageClass
     }
 
     /**
+     * A snapshot of the connections are stored after the authentication flow.
+     * The connected tenants can still change after the flow, either removed by
+     * the API, or by a user through the Xero UI.
+     * However, this copy is a useful cache for the front end.
+     *
      * @param array|ArrayAccess $connections
      */
     public function setConnections($connections)
@@ -115,12 +95,10 @@ class StorageClass
         return $_SESSION['connections'] ?? [];
     }
 
-    // TODO: store scopes
-    // TODO: store id token
-    // TODO: store id token payload
-    // TODO: store authentication_event_id
-
     /**
+     * Xero user (resource owner, in OAuth 2.0 parlance) details extracted
+     * from the openid id token.#
+     *
      * @param array $userDetails
      */
     public function setUserDetails($userDetails)
@@ -137,6 +115,9 @@ class StorageClass
     }
 
     /**
+     * The scppe granted on the last authorisation, which will be a
+     * cumulative list of all scopes granted over multiple authorisations.
+     *
      * @param array|string $scope
      */
     public function setScope($scope)
@@ -157,6 +138,9 @@ class StorageClass
     }
 
     /**
+     * Every authentication flow gets a unique event ID, and that can be used
+     * to determine some of the changes that the user performed during that flow.
+     *
      * @param string $id
      */
     public function setAuthenticationEventId($id)
