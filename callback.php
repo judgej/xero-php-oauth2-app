@@ -133,31 +133,36 @@ $session->clearState();
 // Also could show how we detect whether a new tenant has been added or not, and maybe
 // list the tenants currently connected.
 
+$headerLinks = <<<HEADERLINKS
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+<script src="http://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.0.11/handlebars.min.js"  crossorigin="anonymous"></script>
+HEADERLINKS;
 ?>
 <?php if (! empty($errorMessage)) { ?>
     <html>
         <head>
             <title>My Xero App - Authentication Error</title>
-            <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
-            <script src="http://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
-            <script src="https://cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.0.11/handlebars.min.js"  crossorigin="anonymous"></script>
+            <?php echo $headerLinks; ?>
         </head>
         <body>
-            <p>
-                <?php echo htmlspecialchars($errorMessage); ?>
-            </p>
-            <p>
-                <a href="/">Try again</a>
-            </p>
+            <div class="container">
+                <h2>Authorisation or Authentication Error</h2>
+
+                <p>
+                    <?php echo htmlspecialchars($errorMessage); ?>
+                </p>
+                <p>
+                    <a href="/">Try again</a>
+                </p>
+            </div>
         </body>
     </html>
 <?php } else { ?>
     <html>
         <head>
             <title>My Xero App</title>
-            <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
-            <script src="http://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
-            <script src="https://cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.0.11/handlebars.min.js"  crossorigin="anonymous"></script>
+            <?php echo $headerLinks; ?>
         </head>
         <body>
             <div class="container">
