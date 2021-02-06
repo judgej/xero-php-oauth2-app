@@ -4,7 +4,7 @@
     "type": "project",
     "require": {
         "php": "^7.0",
-        "xeroapi/xero-php-oauth2": "2.0.2",
+        "xeroapi/xero-php-oauth2": "2.3.0",
         "monolog/monolog": "1.0",
         "vlucas/phpdotenv": "^4.1",
         "calcinai/oauth2-xero": "^1.0"
