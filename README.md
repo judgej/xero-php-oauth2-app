@@ -32,9 +32,10 @@ To obtain your API keys, follow these steps and create a Xero app
 ## Configure your .env file
 You'll need to setup your  `.env` file
 
-Rename the file `sample.env` to `.env` and copy and paste your *clientId, clientSecret and redirectUri*  These .env variables will be read by authorization.php, callback.php, get.php.
+Rename the file `.env.example` to `.env` and copy and paste your *clientId, clientSecret and redirectUri*  These .env variables will be read by authorization.php, callback.php, get.php.
 
-Sample.env file
+.env.example file
+
 ```bash
 CLIENT_ID = "YOUR-CLIENT-ID"
 CLIENT_SECRET = "YOUR-CLIENT-SECRET"
@@ -44,6 +45,7 @@ REDIRECT_URI = "http://localhost:8888/xero-php-oauth2-app/callback.php"
 Sample PHP code from authorization.php
 ```php
 // This library will read variable from the .env file.
+
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
 $dotenv->load();
 $clientId = getenv('CLIENT_ID');
@@ -79,7 +81,7 @@ You may want to do this if port `8080` is already in use.
 
 This software is published under the [MIT License](http://en.wikipedia.org/wiki/MIT_License).
 
-	Copyright (c) 2019 Xero Limited
+	Copyright (c) 2019-2021 Xero Limited
 
 	Permission is hereby granted, free of charge, to any person
 	obtaining a copy of this software and associated documentation

@@ -97,7 +97,7 @@ class StorageClass
 
     /**
      * Xero user (resource owner, in OAuth 2.0 parlance) details extracted
-     * from the openid id token.#
+     * from the openid id token.
      *
      * @param array $userDetails
      */

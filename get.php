@@ -1,10 +1,8 @@
 <?php
 
-    use League\OAuth2\Client\Provider\GenericProvider;
     use Calcinai\OAuth2\Client\Provider\Xero as XeroProvider;
     use GuzzleHttp\Client;
     use Dotenv\Dotenv;
-    use XeroAPI\XeroPHP\Api\AccountingApi;
     use XeroAPI\XeroPHP\Api\AssetApi;
     use XeroAPI\XeroPHP\Api\IdentityApi;
     use XeroAPI\XeroPHP\Api\ProjectApi;
@@ -107,7 +105,11 @@
     $tenantList = [];
 
     foreach ($storage->getConnections() as $connection) {
-        $tenantList[$connection->getTenantId()] = $connection->getTenantName();
+		if ($connection instanceof \XeroAPI\XeroPHP\Models\Identity\Connection) {
+        	$tenantList[$connection->getTenantId()] = $connection->getTenantName();
+		} else {
+			$tenantList[$connection->tenantId] = $connection->tenantName;
+		}
     }
 
 	function get_string_between($string, $start, $end){

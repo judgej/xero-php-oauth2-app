@@ -11,11 +11,12 @@ use XeroAPI\XeroPHP\Api\IdentityApi;
 use GuzzleHttp\Client;
 use GuzzleHttp\Psr7\ServerRequest;
 use Calcinai\OAuth2\Client\Provider\Xero as XeroProvider;
+use Dotenv\Dotenv;
 
 ini_set('display_errors', 'On');
 require __DIR__ . '/vendor/autoload.php';
 
-$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+$dotenv = Dotenv::createImmutable(__DIR__);
 $dotenv->load();
 $clientId = getenv('CLIENT_ID');
 $clientSecret = getenv('CLIENT_SECRET');
@@ -70,17 +71,20 @@ if (! isset($code)) {
 
         $resourceOwner = $provider->getResourceOwner($accessToken);
 
+        // The camel case or snake case will depend on whether the resource owner
+        // is an identityApi Connection or a provider XeroTennant.
+
+        $resourceOwnerAuthTime = $resourceOwner->authTime ?? $resourceOwner->auth_time;
+
         $storage->setUserDetails([
-            'givenName' => $resourceOwner->givenName,
-            'familyName' => $resourceOwner->familyName,
+            'givenName' => $resourceOwner->givenName ?? $resourceOwner->given_name,
+            'familyName' => $resourceOwner->familyName ?? $resourceOwner->family_name,
             'email' => $resourceOwner->email,
-            'preferredUsername' => $resourceOwner->preferredUsername,
-            'xeroUserId' => $resourceOwner->xeroUserid,
-            // Unique user ID; how does this compare to XeroUserId?
-            // Is this a contact vs user thing?
+            'preferredUsername' => $resourceOwner->preferredUsername ?? $resourceOwner->preferred_username,
+            'xeroUserid' => $resourceOwner->xeroUserid ?? $resourceOwner->xero_userid,
             'subject' => $resourceOwner->sub,
-            'authTime' => $resourceOwner->authTime,
-            'authTimeFormatted' => (new DateTime())->setTimestamp($resourceOwner->authTime)->format(\DATE_RSS),
+            'authTime' => $resourceOwnerAuthTime,
+            'authTimeFormatted' => (new DateTime())->setTimestamp($resourceOwnerAuthTime)->format(\DATE_RSS),
             'expires' => $resourceOwner->exp,
             'expiresFormatted' => (new DateTime())->setTimestamp($resourceOwner->exp)->format(\DATE_RSS),
             'issuedAt' => $resourceOwner->iat,
@@ -106,12 +110,31 @@ if (! isset($code)) {
         );
 
         // Get Array of connections (to tenants).
+        // The properties of these connections are snake_case or
+        // getCamelCase getters.
 
         $connections = $identityApi->getConnections();
 
+        // A list of just the new connections made can be requested like this.
+        // An empty list will be returned if no new tenants are connected.
+
+        $newConnections = $identityApi->getConnections([
+            'authEventId' => $storage->getAuthenticationEventId(),
+        ]);
+
+        // Or get the tenants from the Xero provider.
+        // The properties of these tenants are camelCase.
+
+        $tenants = $provider->getTenants($accessToken);
+
+        $newTenants = $provider->getTenants($accessToken, [
+            'authEventId' => $storage->getAuthenticationEventId(),
+        ]);
+
         // Store the tenants as a list the user can switch between.
 
-        $storage->setConnections($connections);
+        //$storage->setConnections($connections);
+        $storage->setConnections($tenants);
 
         // Set the active tenant to just be the first in the list.
 
@@ -201,17 +224,23 @@ HEADERLINKS;
                     <tr>
                         <th>Type</th>
                         <th>Name</th>
-                        <th>Connected Time</th>
+                        <th>First Connected Time</th>
+                        <th>Last Connected Time</th>
                     </tr>
                     <?php foreach ($storage->getConnections() as $connection) { ?>
                         <tr>
-                            <td><?php echo htmlspecialchars($connection['tenant_type']); ?></td>
-                            <td><?php echo htmlspecialchars($connection['tenant_name']); ?></td>
+                            <td><?php echo htmlspecialchars($connection->tenantType); ?></td>
+                            <td><?php echo htmlspecialchars($connection->tenantName); ?></td>
                             <td>
-                                <?php echo $connection['updated_date_utc']->format(\DATE_RSS); ?>
-                                <?php echo ($connection['auth_event_id'] === $storage->getAuthenticationEventId()
+                                <?php echo $connection->createdDateUtc->format(\DATE_RSS); ?>
+                                <?php echo ($connection->authEventId === $storage->getAuthenticationEventId()
                                     ? ' <strong>[ADDED THIS AUTH]</strong>'
                                     : '') ?>
+                            </td>
+                            <td>
+                                <span title="Event: <?php echo htmlspecialchars($connection->authEventId); ?>">
+                                    <?php echo $connection->updatedDateUtc->format(\DATE_RSS); ?>
+                                </span>
                             </td>
                         </tr>
                     <?php } ?>

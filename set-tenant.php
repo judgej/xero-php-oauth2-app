@@ -6,9 +6,6 @@
  */
 
 use GuzzleHttp\Psr7\ServerRequest;
-use XeroAPI\XeroPHP\Configuration;
-use XeroAPI\XeroPHP\Api\IdentityApi;
-use GuzzleHttp\Client;
 
 include __DIR__ . '/vendor/autoload.php';
 

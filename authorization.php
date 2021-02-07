@@ -44,12 +44,12 @@ $session->setState($provider->getState());
 header('Location: ' . $authorizationUrl);
 ?>
 <html>
-	<head>
-		<title>My Xero App</title>
-	</head>
-	<body>
-		<p>
+    <head>
+        <title>My Xero App</title>
+    </head>
+    <body>
+        <p>
             <a href="<?php echo htmlspecialchars($authorizationUrl); ?>">Redirecting to Xero</a>
         </p>
-	</body>
+    </body>
 </html>

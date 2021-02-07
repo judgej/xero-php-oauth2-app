@@ -1,23 +1,22 @@
 <?php
-    /**
-     * This script only discards the OAuth tokens that it holds.
-     * It does not disconnect tenants in Xero, and does not revoke
-     * the OAuth token.
-     */
 
-    require __DIR__ . '/vendor/autoload.php';
+/**
+ * This script only discards the OAuth tokens that it holds.
+ * It does not disconnect tenants in Xero, and does not revoke
+ * the OAuth token.
+ */
 
-    use XeroPHP\Application\PublicApplication;
-    use XeroPHP\Remote\Request;
-    use XeroPHP\Remote\URL;
-    // Start a session for the oauth session storage
-    session_start();
+require __DIR__ . '/vendor/autoload.php';
 
-    unset($_SESSION['oauth']['token']);
-    unset($_SESSION['oauth']['token_secret']);
-    $_SESSION['oauth']['expires'] = null;
+// Start a session for the oauth session storage
 
-    header("Location: index.php");
+session_start();
+
+unset($_SESSION['oauth']['token']);
+unset($_SESSION['oauth']['token_secret']);
+$_SESSION['oauth']['expires'] = null;
+
+header("Location: index.php");
 ?>
 <html>
     <head>
